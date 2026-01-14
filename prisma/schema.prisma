@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// אנשים - חיילים/מפקדים/קצינים
+model Person {
+  id          String   @id @default(cuid())
+  name        String
+  isSoldier   Boolean  @default(true)
+  isCommander Boolean  @default(false)
+  isOfficer   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  blockedDates BlockedDate[]
+  assignments  Assignment[]
+
+  @@index([isActive])
+  @@index([isSoldier])
+  @@index([isCommander])
+  @@index([isOfficer])
+}
+
+// תאריכים חסומים לכל אדם
+model BlockedDate {
+  id       String @id @default(cuid())
+  personId String
+  date     String // YYYY-MM-DD format
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, date])
+  @@index([date])
+}
+
+// משבצות תורנות
+model DutySlot {
+  id              String   @id @default(cuid())
+  date            String   // תאריך (ליום רגיל: התאריך, לסופ"ש: יום חמישי)
+  type            String   // "regular" | "weekend"
+  soldiersNeeded  Int      @default(1)
+  commandersNeeded Int     @default(1)
+  officersNeeded  Int      @default(1)
+  isLocked        Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  assignments Assignment[]
+
+  @@unique([date, type])
+  @@index([date])
+  @@index([type])
+}
+
+// שיבוצים
+model Assignment {
+  id        String  @id @default(cuid())
+  slotId    String
+  personId  String
+  role      String  // "soldier" | "commander" | "officer"
+  isReserve Boolean @default(false) // האם זה כונן
+  isLocked  Boolean @default(false)
+  warnings  String? // JSON array of warnings
+
+  slot   DutySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  person Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([slotId, personId, role, isReserve])
+  @@index([slotId])
+  @@index([personId])
+  @@index([role])
+}
+
+// הגדרות מערכת
+model Settings {
+  id    String @id @default("default")
+  key   String @unique
+  value String // JSON value
+}
